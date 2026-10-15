@@ -42,7 +42,7 @@ OPTIONS
              mode. See below for information about configuration files.
   -R         Assume user is root or that he has the required capabilities
              without running any checks.
-  -f         Enable fast mode scan. This will only scan for .1, .100 and .254
+  -f         Enable fast mode scan. This will only scan for .1, .2, .100, .200 and .254
              on each network. This mode is useful while searching for ranges
              being used. After you found such range you can make a specific
              range scan to find online boxes.
@@ -99,7 +99,7 @@ CONFIG FILES
 
   ~/.netdiscover/fastips  
           List containing the last octet of the IPs to be scanned on each
-          subnet, when using fast mode (-f), by default (1,100,154). You must
+          subnet, when using fast mode (-f), by default (1,2,100,200,254). You must
           put a number per line.
 
 USAGE EXAMPLES

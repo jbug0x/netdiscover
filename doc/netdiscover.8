@@ -85,7 +85,7 @@ without running any checks.
 .TP
 .B
 \fB-f\fP
-Enable fast mode scan. This will only scan for .1, .100 and .254
+Enable fast mode scan. This will only scan for .1, .2, .100, .200 and .254
 on each network. This mode is useful while searching for ranges
 being used. After you found such \fIrange\fP you can make a specific
 \fIrange\fP scan to find online boxes.
@@ -168,7 +168,7 @@ Example:
 .B
 ~/.\fBnetdiscover\fP/fastips
 List containing the last octet of the IPs to be scanned on each
-subnet, when using fast mode (\fB-f\fP), by default (1,100,154). You must
+subnet, when using fast mode (\fB-f\fP), by default (1,2,100,200,254). You must
 put a number per line.
 .SH USAGE EXAMPLES
 Scan common LAN addresses on eth0:

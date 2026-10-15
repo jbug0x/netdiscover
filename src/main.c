@@ -426,70 +426,27 @@ void *inject_arp(void *arg)
 }
 
 
-/* Scan 255 hosts network */
-void scan_net(char *disp, char *sip)
+/* Sleep between ARP requests (or after each pass, with -S) */
+static void probe_sleep(void)
 {
-   int x, j;
-   char test[16], fromip[16];
+   if (flag_sleep_time != 99)
+      usleep(flag_sleep_time * 1000);
+   else
+      usleep(1 * 1000);
+}
 
-   sprintf(fromip,"%s.%i", sip, flag_network_octect);
+/* Send one ARP request. The source IP uses the last octet set with -n, in
+ * the same /24 as the target. */
+static void probe_host(uint32_t target, char *disp)
+{
+   char target_ip[16], fromip[16];
 
-   /* Repeat given times */
-   for (x=0; x<flag_repeat_scan; x++)
-   {
+   int_to_ip(target, target_ip);
+   int_to_ip((target & 0xFFFFFF00U) | (flag_network_octect & 0xFF), fromip);
+   forge_arp(fromip, target_ip, disp);
 
-      /* Check if fastmode is enabled */
-      if (flag_fast_mode != 1)
-      {
-         for (j=1; j<255; j++)
-         {
-            sprintf(test,"%s.%i", sip, j);
-            forge_arp(fromip, test, disp);
-
-            /* Check sleep time supression */
-            if (flag_supress_sleep != 1)
-            {
-               /* Sleep time */
-               if (flag_sleep_time != 99)
-                  usleep(flag_sleep_time * 1000);
-               else
-                  usleep(1 * 1000);
-            }
-         }
-      }
-      else
-      {
-         j = 0;
-
-         while (fast_ips[j] != NULL)
-         {
-            sprintf(test,"%s.%s", sip, fast_ips[j]);
-            forge_arp(fromip, test, disp);
-            j++;
-
-            /* Check sleep time supression */
-            if (flag_supress_sleep != 1)
-            {
-               /* Sleep time */
-               if (flag_sleep_time != 99)
-                  usleep(flag_sleep_time * 1000);
-               else
-                  usleep(1 * 1000);
-            }
-         }
-      }
-
-      /* If sleep supression is enabled, sleep each 255 hosts */
-      if (flag_supress_sleep == 1)
-      {
-         /* Sleep time */
-         if (flag_sleep_time != 99)
-            usleep(flag_sleep_time * 1000);
-         else
-            usleep(1 * 1000);
-      }
-
-   }
+   if (flag_supress_sleep != 1)
+      probe_sleep();
 }
 
 /* Scan range, using arp requests */
@@ -497,9 +454,8 @@ void scan_range(char *disp, char *cidr)
 {
     char ip_str[20], *slash;
     int prefix;
-    uint32_t ip, netmask, network, broadcast, start_ip, end_ip;
-    char target_ip[16], fromip[16];
-    int x;
+    uint32_t ip, netmask, network, broadcast, start_ip, end_ip, block;
+    int x, j;
 
     // Copy and split IP / prefix 
     strncpy(ip_str, cidr, sizeof(ip_str)-1);
@@ -530,29 +486,34 @@ void scan_range(char *disp, char *cidr)
 
     for (x = 0; x < flag_repeat_scan; x++)
     {
-        for (uint32_t i = start_ip; i <= end_ip; i++)
+        if (flag_fast_mode != 1)
         {
-            int_to_ip(i, target_ip);
-            int_to_ip(start_ip, fromip); 
-
-            forge_arp(fromip, target_ip, disp);
-
-            if (flag_supress_sleep != 1)
+            for (uint32_t i = start_ip; i <= end_ip; i++)
+                probe_host(i, disp);
+        }
+        else
+        {
+            /* Fast mode: only the last octets listed in fast_ips, on each /24 */
+            for (block = start_ip & 0xFFFFFF00U; block <= end_ip; block += 256)
             {
-                if (flag_sleep_time != 99)
-                    usleep(flag_sleep_time * 1000);
-                else
-                    usleep(1 * 1000);
+                for (j = 0; fast_ips[j] != NULL; j++)
+                {
+                    char *endp;
+                    long octet = strtol(fast_ips[j], &endp, 10);
+
+                    if (endp == fast_ips[j] || octet < 0 || octet > 255)
+                        continue;
+                    if (block + octet < start_ip || block + octet > end_ip)
+                        continue;
+                    probe_host(block + octet, disp);
+                }
+                if (block + 256 < block)   /* wrapped past 255.255.255.0 */
+                    break;
             }
         }
 
         if (flag_supress_sleep == 1)
-        {
-            if (flag_sleep_time != 99)
-                usleep(flag_sleep_time * 1000);
-            else
-                usleep(1 * 1000);
-        }
+            probe_sleep();
     }
 }
 
